@@ -57,4 +57,5 @@ Rails.application.configure do
 
   # Annotate rendered view with file names.
   # config.action_view.annotate_rendered_view_with_filenames = true
+  config.hosts << "web-production-71d1d.up.railway.app"
 end
