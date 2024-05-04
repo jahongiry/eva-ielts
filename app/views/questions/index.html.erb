@@ -40,18 +40,27 @@
     }, 1000);
   });
 
-  function fetchQuestion() {
-    return fetch('/fetch_question', {
-      method: 'GET',
-      headers: {
-        'X-CSRF-Token': document.querySelector('[name="csrf-token"]').content
-      }
-    })
-    .then(response => response.json())
-    .then(data => {
-      document.getElementById('question').innerHTML = data.question;
-    });
-  }
+function fetchQuestion() {
+  return fetch('/fetch_question', {
+    method: 'GET',
+    headers: {
+      'X-CSRF-Token': document.querySelector('[name="csrf-token"]').content
+    }
+  })
+  .then(response => response.json())
+  .then(data => {
+    const question = data.question;
+    document.getElementById('question').innerHTML = question;
+
+    // Read out the question
+    const speech = new SpeechSynthesisUtterance();
+    speech.text = question;
+    speech.lang = 'en-US';
+    speech.volume = 1; // Adjust volume if needed
+    window.speechSynthesis.speak(speech);
+  });
+}
+
 
   let recognition = new webkitSpeechRecognition();
   recognition.continuous = true;
