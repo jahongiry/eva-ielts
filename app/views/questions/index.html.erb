@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>IELTS Practice</title>
+  <%= csrf_meta_tags %>
+  <%= csp_meta_tag %>
+  <%= stylesheet_link_tag 'questions', media: 'all', 'data-turbolinks-track': 'reload' %>
+</head>
+<body>
+  <h2 class="text1">Check your speaking based on IELTS speaking part 1</h2>
+  <button id="startButton">Start</button>
+  <div id="countdown"></div>
+  <div id="question"></div>
+  <div id="speak">Now you can start speaking...</div>
+
+  <script>
+  document.getElementById('startButton').addEventListener('click', function() {
+    this.textContent = 'Restart'; // Change button text to 'Restart' when clicked
+    let counter = 3;
+    let countdownElem = document.getElementById('countdown');
+    let speakElem = document.getElementById('speak');
+    let questionElem = document.getElementById('question');
+    questionElem.innerHTML = ''; // Clear the previous question
+    countdownElem.style.opacity = 1; // Ensure visibility at the start
+    let interval = setInterval(function() {
+      countdownElem.innerHTML = counter;
+      countdownElem.style.opacity = 1; // Ensure it's visible each time it updates
+      counter--;
+      if (counter < 0) {
+        clearInterval(interval);
+        countdownElem.style.opacity = 0; // Hide countdown after finish
+        fetchQuestion().then(() => {
+          setTimeout(() => {
+            startListening();
+            speakElem.style.opacity = 1;
+            speakElem.innerHTML = 'Now you can start speaking...';
+          }, 6000);
+        });
+      }
+    }, 1000);
+  });
+
+  function fetchQuestion() {
+    return fetch('/fetch_question', {
+      method: 'GET',
+      headers: {
+        'X-CSRF-Token': document.querySelector('[name="csrf-token"]').content
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      document.getElementById('question').innerHTML = data.question;
+    });
+  }
+
+  let recognition = new webkitSpeechRecognition();
+  recognition.continuous = true;
+  recognition.lang = 'en-US';
+  recognition.interimResults = true;
+  let finalTranscript = '';
+  let resultTimeout;
+
+  recognition.onresult = function(event) {
+    let interimTranscript = '';
+    for (let i = event.resultIndex; i < event.results.length; ++i) {
+      if (event.results[i].isFinal) {
+        finalTranscript += event.results[i][0].transcript + ' ';
+      } else {
+        interimTranscript += event.results[i][0].transcript;
+      }
+    }
+    document.getElementById('speak').innerHTML = finalTranscript + '<i>' + interimTranscript + '</i>';
+    clearTimeout(resultTimeout);
+    resultTimeout = setTimeout(() => {
+      recognition.stop();
+    }, 4000);
+  };
+
+  recognition.onend = function() {
+    if (finalTranscript.length > 0) {
+      document.getElementById('question').innerHTML = "Processing your response...";
+      sendResponseToServer(finalTranscript);
+      document.getElementById('speak').innerHTML = 'Now you can start speaking...'; // Reset for next session
+      finalTranscript = ''; // Reset transcript
+    }
+  };
+
+  function startListening() {
+    recognition.start();
+  }
+
+  function sendResponseToServer(responseText) {
+fetch('/evaluate_speech', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'X-CSRF-Token': document.querySelector('[name="csrf-token"]').content
+  },
+  body: JSON.stringify({ response_text: responseText })
+})
+.then(response => response.json())
+.then(data => {
+  document.getElementById('speak').style.opacity = 0;
+  document.getElementById('question').innerHTML = `<h1>${data.score}</h1><p>${data.feedback}</p>`;
+  
+  // Read out the score and feedback
+  const speech = new SpeechSynthesisUtterance();
+  speech.text = `${data.score}. ${data.feedback}`;
+  speech.lang = 'en-US';
+  speech.volume = 1; // Adjust volume if needed
+  window.speechSynthesis.speak(speech);
+});
+
+  }
+  </script>
+</body>
+</html>
